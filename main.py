@@ -1,8 +1,10 @@
-import logging
-import importlib.metadata
 import re
+import logging
 import tempfile
 import os
+from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.error import BadRequest
 
 # Enable logging
 logging.basicConfig(
@@ -10,25 +12,6 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-
-def list_installed_packages():
-    try:
-        packages = importlib.metadata.distributions()
-        packages_list = sorted([f"{pkg.metadata['Name']}=={pkg.version}" for pkg in packages])
-        logger.info("Installed packages:\n" + "\n".join(packages_list))
-    except Exception as e:
-        logger.error(f"Error listing installed packages: {e}")
-
-list_installed_packages()
-
-# Import telegram modules after listing installed packages
-try:
-    from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup
-    from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-    from telegram.error import BadRequest
-except ModuleNotFoundError as e:
-    logger.error(f"Error importing telegram modules: {e}")
-    raise
 
 # Function to extract credit card details
 def extract_cc_details(file_content):
@@ -88,9 +71,6 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         else:
             logger.error(f"Error processing file: {e}")
             await update.message.reply_text("There was an error processing the file.")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        await update.message.reply_text("An unexpected error occurred while processing the file.")
 
 # Main function to set up the bot
 def main():
