@@ -1,5 +1,5 @@
 import logging
-import pkg_resources
+import importlib.metadata
 
 # Enable logging
 logging.basicConfig(
@@ -9,8 +9,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def list_installed_packages():
-    installed_packages = pkg_resources.working_set
-    packages_list = sorted(["%s==%s" % (i.key, i.version) for i in installed_packages])
+    packages = importlib.metadata.distributions()
+    packages_list = sorted([f"{pkg.metadata['Name']}=={pkg.version}" for pkg in packages])
     logger.info("Installed packages:\n" + "\n".join(packages_list))
 
 list_installed_packages()
@@ -99,3 +99,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
