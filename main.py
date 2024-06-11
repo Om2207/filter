@@ -1,5 +1,8 @@
 import logging
 import importlib.metadata
+import re
+import tempfile
+import os
 
 # Enable logging
 logging.basicConfig(
@@ -9,9 +12,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def list_installed_packages():
-    packages = importlib.metadata.distributions()
-    packages_list = sorted([f"{pkg.metadata['Name']}=={pkg.version}" for pkg in packages])
-    logger.info("Installed packages:\n" + "\n".join(packages_list))
+    try:
+        packages = importlib.metadata.distributions()
+        packages_list = sorted([f"{pkg.metadata['Name']}=={pkg.version}" for pkg in packages])
+        logger.info("Installed packages:\n" + "\n".join(packages_list))
+    except Exception as e:
+        logger.error(f"Error listing installed packages: {e}")
 
 list_installed_packages()
 
@@ -23,10 +29,6 @@ try:
 except ModuleNotFoundError as e:
     logger.error(f"Error importing telegram modules: {e}")
     raise
-
-import re
-import tempfile
-import os
 
 # Function to extract credit card details
 def extract_cc_details(file_content):
@@ -77,26 +79,4 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             # Send the button
-            await update.message.reply_text("If you found this bot useful, consider donating!", reply_markup=reply_markup)
-        else:
-            await update.message.reply_text("No valid CC details found in the file.")
-    except BadRequest as e:
-        if "File is too big" in str(e):
-            await update.message.reply_text("FILE IS TOO BIG. TRY SENDING SOME SMALLER FILES.")
-        else:
-            logger.error(f"Error processing file: {e}")
-            await update.message.reply_text("There was an error processing the file.")
-
-# Main function to set up the bot
-def main():
-    # Replace 'YOUR_TOKEN' with your bot's token
-    application = Application.builder().token("7450853759:AAGMqwEK-JFKcHowGBKOXwQXVBa1_TZuBRE").build()
-
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.Document.MimeType("text/plain"), handle_file))
-
-    application.run_polling()
-
-if __name__ == '__main__':
-    main()
-    
+            await update
