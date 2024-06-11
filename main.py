@@ -79,4 +79,28 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             # Send the button
-            await update
+            await update.message.reply_text("If you found this bot useful, consider donating!", reply_markup=reply_markup)
+        else:
+            await update.message.reply_text("No valid CC details found in the file.")
+    except BadRequest as e:
+        if "File is too big" in str(e):
+            await update.message.reply_text("FILE IS TOO BIG. TRY SENDING SOME SMALLER FILES.")
+        else:
+            logger.error(f"Error processing file: {e}")
+            await update.message.reply_text("There was an error processing the file.")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        await update.message.reply_text("An unexpected error occurred while processing the file.")
+
+# Main function to set up the bot
+def main():
+    # Replace 'YOUR_TOKEN' with your bot's token
+    application = Application.builder().token("7450853759:AAGMqwEK-JFKcHowGBKOXwQXVBa1_TZuBRE").build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.Document.MimeType("text/plain"), handle_file))
+
+    application.run_polling()
+
+if __name__ == '__main__':
+    main()
