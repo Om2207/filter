@@ -14,7 +14,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Telegram bot token
-TOKEN = '7335162364:AAE_wQdtsMky8pLTCsMJhUcAOpnX2xGyFxA'
+TOKEN = '7335162364:AAGiFnx4Y4Gon3jDRHlBIYti7NJ06eB3ufM'
 
 # Function to extract credit card details
 def extract_cc_details(file_content):
