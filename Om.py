@@ -13,6 +13,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Telegram bot token
+TOKEN = '7335162364:AAE_wQdtsMky8pLTCsMJhUcAOpnX2xGyFxA'
+
 # Function to extract credit card details
 def extract_cc_details(file_content):
     logger.info("Extracting CC details from file content")
@@ -20,7 +23,26 @@ def extract_cc_details(file_content):
     # Patterns to match different CC log formats
     patterns = [
         re.compile(r'(\d{16})\|(\d{2}/\d{4})\|(\d{3,4})'),  # Pattern for format cc|MM/YYYY|CVV
-        re.compile(r'(\d{15,16})\|(\d{2})\|(\d{4})\|(\d{3,4})')  # Pattern for format cc|MM|YYYY|CVV
+        re.compile(r'(\d{15,16})\|(\d{2})\|(\d{4})\|(\d{3,4})'),  # Pattern for format cc|MM|YYYY|CVV
+        re.compile(r'(\d{13,16})\|(\d{2}/\d{2})\|(\d{3,4})'),  # Pattern for format cc|MM/YY|CVV
+        re.compile(r'(\d{15,16})\|(\d{2})\|(\d{2})\|(\d{3,4})'),  # Pattern for format cc|MM|YY|CVV
+        re.compile(r'(\d{16})\|(\d{2})/(\d{4})\|(\d{3,4})'),  # Pattern for format cc|MM/YYYY|CVV with /
+        re.compile(r'(\d{16})\|(\d{4})\|(\d{3,4})'),  # Pattern for format cc|YYYY|CVV
+        re.compile(r'(\d{16}) (\d{2}/\d{4}) (\d{3,4})'),  # Pattern for format cc MM/YYYY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2})/(\d{4}) (\d{3,4})'),  # Pattern for format cc MM/YYYY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2}) (\d{2}) (\d{3,4})'),  # Pattern for format cc MM YY CVV with spaces
+        re.compile(r'(\d{16}) (\d{4}) (\d{3,4})'),  # Pattern for format cc YYYY CVV with spaces
+        re.compile(r'(\d{13,16}) (\d{2})/(\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'(\d{13,16}) (\d{2}/\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2}/\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2}) (\d{2}) (\d{3,4})'),  # Pattern for format cc MM YY CVV with spaces
+        re.compile(r'(\d{13,16}) (\d{2}) (\d{4}) (\d{3,4})'),  # Pattern for format cc MM YYYY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2}) (\d{2}) (\d{3,4})'),  # Pattern for format cc MM YY CVV with spaces
+        re.compile(r'(\d{16}) (\d{4}) (\d{3,4})'),  # Pattern for format cc YYYY CVV with spaces
+        re.compile(r'(\d{13,16}) (\d{2})/(\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'(\d{13,16}) (\d{2}/\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2}/\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2}) (\d{2}) (\d{3,4})'),  # Pattern for format cc MM YY CVV with spaces
     ]
 
     matches = []
@@ -30,11 +52,19 @@ def extract_cc_details(file_content):
     logger.info(f"Matches found: {matches}")
     return matches
 
-# Start command handler
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text('Hello! Send me a .txt file and I will filter CC details in the format cc|expiry date|cvv.')
+# Welcome command handler
+async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(
+        "Hello! I'm your bot, here are the available commands:\n"
+        "/logs - Extract credit card details from a text file\n"
+        "\nDeveloper: OM"
+    )
 
-# File handler
+# Logs command handler
+async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text('Send me a .txt file and I will filter CC details in the format cc|expiry date|cvv.')
+
+# File handler for extracting CC details
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         logger.info("Received a file from the user")
@@ -74,13 +104,14 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 # Main function to set up the bot
 def main():
-    # Replace 'YOUR_TOKEN' with your bot's token
-    application = Application.builder().token("7450853759:AAGMqwEK-JFKcHowGBKOXwQXVBa1_TZuBRE").build()
+    application = Application.builder().token(TOKEN).build()
 
-    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("start", welcome))
+    application.add_handler(CommandHandler("logs", logs))
     application.add_handler(MessageHandler(filters.Document.MimeType("text/plain"), handle_file))
 
     application.run_polling()
 
 if __name__ == '__main__':
     main()
+            
