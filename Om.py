@@ -22,47 +22,52 @@ def extract_cc_details(file_content):
     
     # Patterns to match different CC log formats
     patterns = [
-        re.compile(r'(\d{16})\|(\d{2}/\d{4})\|(\d{3,4})'),  # Pattern for format cc|MM/YYYY|CVV
+        re.compile(r'(\d{16})\|(\d{2})/(\d{4})\|(\d{3,4})'),  # Pattern for format cc|MM/YYYY|CVV
+        re.compile(r'(\d{16})\|(\d{2})/(\d{2})\|(\d{3,4})'),  # Pattern for format cc|MM/YY|CVV
         re.compile(r'(\d{15,16})\|(\d{2})\|(\d{4})\|(\d{3,4})'),  # Pattern for format cc|MM|YYYY|CVV
-        re.compile(r'(\d{13,16})\|(\d{2}/\d{2})\|(\d{3,4})'),  # Pattern for format cc|MM/YY|CVV
         re.compile(r'(\d{15,16})\|(\d{2})\|(\d{2})\|(\d{3,4})'),  # Pattern for format cc|MM|YY|CVV
-        re.compile(r'(\d{16})\|(\d{2})/(\d{4})\|(\d{3,4})'),  # Pattern for format cc|MM/YYYY|CVV with /
-        re.compile(r'(\d{16})\|(\d{4})\|(\d{3,4})'),  # Pattern for format cc|YYYY|CVV
-        re.compile(r'(\d{16}) (\d{2}/\d{4}) (\d{3,4})'),  # Pattern for format cc MM/YYYY CVV with spaces
         re.compile(r'(\d{16}) (\d{2})/(\d{4}) (\d{3,4})'),  # Pattern for format cc MM/YYYY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2})/(\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2}) (\d{4}) (\d{3,4})'),  # Pattern for format cc MM YYYY CVV with spaces
         re.compile(r'(\d{16}) (\d{2}) (\d{2}) (\d{3,4})'),  # Pattern for format cc MM YY CVV with spaces
         re.compile(r'(\d{16}) (\d{4}) (\d{3,4})'),  # Pattern for format cc YYYY CVV with spaces
         re.compile(r'(\d{13,16}) (\d{2})/(\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
         re.compile(r'(\d{13,16}) (\d{2}/\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'(\d{13,16})\|(\d{2})/(\d{2})\|(\d{3,4})'),  # Pattern for format cc MM/YY CVV
+        re.compile(r'(\d{16}) (\d{2}) (\d{2}) (\d{3,4})'),  # Pattern for format cc MM YY CVV with spaces
+        re.compile(r'(\d{13,16})\|(\d{2})/(\d{4})\|(\d{3,4})'),  # Pattern for format cc MM/YYYY CVV
+        re.compile(r'(\d{16})\|(\d{4})\|(\d{3,4})'),  # Pattern for format cc|YYYY|CVV
+        re.compile(r'(\d{13,16}) (\d{2}) (\d{2}) (\d{3,4})'),  # Pattern for format cc MM YY CVV with spaces
         re.compile(r'(\d{16}) (\d{2}/\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2})/(\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
         re.compile(r'(\d{16}) (\d{2}) (\d{2}) (\d{3,4})'),  # Pattern for format cc MM YY CVV with spaces
         re.compile(r'(\d{13,16}) (\d{2}) (\d{4}) (\d{3,4})'),  # Pattern for format cc MM YYYY CVV with spaces
-        re.compile(r'(\d{16}) (\d{2}) (\d{2}) (\d{3,4})'),  # Pattern for format cc MM YY CVV with spaces
         re.compile(r'(\d{16}) (\d{4}) (\d{3,4})'),  # Pattern for format cc YYYY CVV with spaces
-        re.compile(r'(\d{13,16}) (\d{2})/(\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
-        re.compile(r'(\d{13,16}) (\d{2}/\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'(\d{16}) (\d{2})/(\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
         re.compile(r'(\d{16}) (\d{2}/\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
-        re.compile(r'(\d{16}) (\d{2}) (\d{2}) (\d{3,4})'),  # Pattern for format cc MM YY CVV with spaces
     ]
 
     matches = []
     for pattern in patterns:
         matches.extend(pattern.findall(file_content))
     
-    logger.info(f"Matches found: {matches}")
-    return matches
+    formatted_matches = []
+    for match in matches:
+        cc, mm, yy, cvv = match[0], match[1], match[2], match[3]
+        mm = mm.zfill(2)  # Ensure month is two digits
+        yy = yy[-2:]      # Ensure year is two digits
+        formatted_matches.append(f"{cc}|{mm}|{yy}|{cvv}")
+    
+    logger.info(f"Matches found: {formatted_matches}")
+    return formatted_matches
 
 # Welcome command handler
 async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "Hello! I'm your bot, here are the available commands:\n"
-        "/logs - Extract credit card details from a text file\n"
-        "\nDeveloper: OM"
+        "Welcome to the Free CC Logs Extractor Bot! 🎉\n"
+        "Send me a .txt file with CC logs, and I'll extract the details for you.\n"
+        "Developer: OM"
     )
-
-# Logs command handler
-async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text('Send me a .txt file and I will filter CC details in the format cc|expiry date|cvv.')
 
 # File handler for extracting CC details
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -78,21 +83,20 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             # Create a temporary file to store the extracted credit card details
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
                 for detail in cc_details:
-                    temp_file.write("|".join(detail) + "\n")
+                    temp_file.write(detail + "\n")
 
             # Read the temporary file and send its content as a document to the user
             with open(temp_file.name, 'rb') as f:
-                await update.message.reply_document(InputFile(f, filename='extracted_ccs.txt'), caption="Here are the extracted CC details")
+                await update.message.reply_document(
+                    InputFile(f, filename='extracted_ccs.txt'), 
+                    caption="Here are the extracted CC details",
+                    reply_markup=InlineKeyboardMarkup(
+                        [[InlineKeyboardButton("Owner", url="https://t.me/rundilundlegamera")]]
+                    )
+                )
 
             # Clean up the temporary file
             os.unlink(temp_file.name)
-
-            # Create an inline button for donation
-            keyboard = [[InlineKeyboardButton("Donate", url="https://t.me/rundilundlegamera")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            # Send the button
-            await update.message.reply_text("If you found this bot useful, consider donating!", reply_markup=reply_markup)
         else:
             await update.message.reply_text("No valid CC details found in the file.")
     except BadRequest as e:
@@ -107,11 +111,10 @@ def main():
     application = Application.builder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("start", welcome))
-    application.add_handler(CommandHandler("logs", logs))
     application.add_handler(MessageHandler(filters.Document.MimeType("text/plain"), handle_file))
 
     application.run_polling()
 
 if __name__ == '__main__':
     main()
-            
+                
