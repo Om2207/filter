@@ -1,26 +1,22 @@
 import re
 import logging
-import tempfile
-import os
-from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from telegram.error import BadRequest
+import time
+from telethon import TelegramClient, events
+from telethon.tl.custom import Button
 
-# Enable logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+# Replace these with your own values
+api_id = '26404724'
+api_hash = 'c173ec37cd2a6190394a0ec7915e7d50'
+bot_token = '7335162364:AAFGxA7x9ch_Ks9jFN6638twMYcnVXsBaYM'
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Telegram bot token
-TOKEN = '7335162364:AAGiFnx4Y4Gon3jDRHlBIYti7NJ06eB3ufM'
+client = TelegramClient('session_ame', api_id, api_hash)
+acc = TelegramClient('acc_ame', api_id, api_hash)
 
-# Function to extract credit card details
-def extract_cc_details(file_content):
-    logger.info("Extracting CC details from file content")
-    
-    # Patterns to match different CC log formats
+def extract_cc(text):
     patterns = [
         re.compile(r'(\d{16})\|(\d{2})/(\d{4})\|(\d{3,4})'),  # Pattern for format cc|MM/YYYY|CVV
         re.compile(r'(\d{16})\|(\d{2})/(\d{2})\|(\d{3,4})'),  # Pattern for format cc|MM/YY|CVV
@@ -45,76 +41,135 @@ def extract_cc_details(file_content):
         re.compile(r'(\d{16}) (\d{4}) (\d{3,4})'),  # Pattern for format cc YYYY CVV with spaces
         re.compile(r'(\d{16}) (\d{2})/(\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
         re.compile(r'(\d{16}) (\d{2}/\d{2}) (\d{3,4})'),  # Pattern for format cc MM/YY CVV with spaces
+        re.compile(r'\b(\d{15,16})[/| -]+(\d{1,2})[/| -]+(\d{2,4})[/| -]+(\d{3,4})\b')  # Pattern for format cc MM/YY CVV with separators
     ]
 
     matches = []
     for pattern in patterns:
-        matches.extend(pattern.findall(file_content))
-    
+        matches.extend(pattern.findall(text))
+
     formatted_matches = []
     for match in matches:
         cc, mm, yy, cvv = match[0], match[1], match[2], match[3]
         mm = mm.zfill(2)  # Ensure month is two digits
-        yy = yy[-2:]      # Ensure year is two digits
+        yy = '20' + yy if len(yy) == 2 else yy  # Ensure year is four digits
         formatted_matches.append(f"{cc}|{mm}|{yy}|{cvv}")
-    
-    logger.info(f"Matches found: {formatted_matches}")
+
     return formatted_matches
 
-# Welcome command handler
-async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
+@client.on(events.NewMessage(pattern='/start'))
+async def welcome(event):
+    welcome_message = (
         "Welcome to the Free CC Logs Extractor Bot! 🎉\n"
-        "Send me a .txt file with CC logs, and I'll extract the details for you.\n"
-        "Developer: OM"
+        "Here are the commands you can use:\n\n"
+        "/scrape <chat_name> <amount> - Scrape CC details from a chat\n"
+        "/flt - Extract CC details from a text file (reply to the file with this command)\n"
+        "/id - Show your user ID and chat ID\n"
+        "Developer: [OM](https://t.me/rundilundlegamera)"
     )
+    await event.reply(welcome_message)
 
-# File handler for extracting CC details
-async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@client.on(events.NewMessage(pattern='/scrape (.*) (\d+)'))
+async def handler(event):
+    start_time = time.time()
+    found_ccs = 0
+    msgg = await event.reply("Please wait...")
+    chat_name = event.pattern_match.group(1)
+    amount = int(event.pattern_match.group(2))
+
+    # Get chat entity
     try:
-        logger.info("Received a file from the user")
-        file = await context.bot.get_file(update.message.document.file_id)
-        file_content = await file.download_as_bytearray()
-        file_content = file_content.decode('utf-8')
-        logger.info("File content received")
+        chat = await acc.get_input_entity(chat_name)
+    except ValueError:
+        await event.reply("Invalid chat name.")
+        return
 
-        cc_details = extract_cc_details(file_content)
-        if cc_details:
-            # Create a temporary file to store the extracted credit card details
-            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
-                for detail in cc_details:
-                    temp_file.write(detail + "\n")
+    try:
+        async for message in acc.iter_messages(chat):
+            text = message.text
+            if text:
+                extracted_ccs = extract_cc(text)
+                if extracted_ccs:
+                    with open("combos/scrapped.txt", "a") as file:
+                        file.write(f"{extracted_ccs[0]}\n")
+                    found_ccs += len(extracted_ccs)
+                    if found_ccs >= amount:
+                        break
 
-            # Read the temporary file and send its content as a document to the user
-            with open(temp_file.name, 'rb') as f:
-                await update.message.reply_document(
-                    InputFile(f, filename='extracted_ccs.txt'), 
-                    caption="Here are the extracted CC details",
-                    reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton("Owner", url="https://t.me/rundilundlegamera")]]
-                    )
+        with open("combos/scrapped.txt", "r") as file:
+            lines = file.readlines()
+            count = len(lines)
+
+        end_time = time.time()
+        time_taken = end_time - start_time
+
+        await client.send_file(
+            event.chat_id,
+            "combos/scrapped.txt",
+            caption=f'CCs Found: `{count}`\nTime Taken: `{time_taken:.2f}s`',
+            buttons=[[
+                Button.url("Owner", "https://t.me/rundilundlegamera")
+            ]]
+        )
+        await msgg.delete()
+        with open("combos/scrapped.txt", "w") as file:
+            file.write("")
+    except Exception as e:
+        logger.error(f"Error during scraping: {e}")
+        await event.reply("An error occurred during scraping. Please try again later.")
+
+@client.on(events.NewMessage(pattern='/flt'))
+async def extract_cc_command(event):
+    user_id = event.sender_id
+    if event.is_reply and event.message.reply_to_msg_id:
+        message = await event.get_reply_message()
+        if message.file:
+            try:
+                start_time = time.time()
+                msgg = await event.reply("Please wait..")
+                file = await message.download_media(f'combos/fil_{user_id}.txt')
+                
+                with open(file, "r") as fie:
+                    lines = fie.readlines()
+                    with open(f"combos/results_{user_id}.txt", "w") as res:
+                        found_ccs = 0
+                        for line in lines:
+                            credit_cards = extract_cc(line)
+                            if credit_cards:
+                                formatted_cc = credit_cards[0]
+                                res.write(f"{formatted_cc}\n")
+                                found_ccs += 1
+
+                end_time = time.time()
+                time_taken = end_time - start_time
+
+                await msgg.delete()
+                await client.send_file(
+                    event.chat_id,
+                    f"combos/results_{user_id}.txt",
+                    caption=f'CCs Found: `{found_ccs}`\nTime Taken: `{time_taken:.2f}s`',
+                    buttons=[[
+                        Button.url("Owner", "https://t.me/rundilundlegamera")
+                    ]]
                 )
-
-            # Clean up the temporary file
-            os.unlink(temp_file.name)
+            except Exception as e:
+                logger.error(f"Error processing file: {e}")
+                await event.reply("There was an error processing the file.")
         else:
-            await update.message.reply_text("No valid CC details found in the file.")
-    except BadRequest as e:
-        if "File is too big" in str(e):
-            await update.message.reply_text("FILE IS TOO BIG. TRY SENDING SOME SMALLER FILES.")
-        else:
-            logger.error(f"Error processing file: {e}")
-            await update.message.reply_text("There was an error processing the file.")
+            await event.reply('No file found. Please reply to a text file.')
+    else:
+        await event.reply('Please reply to a file.')
 
-# Main function to set up the bot
-def main():
-    application = Application.builder().token(TOKEN).build()
+@client.on(events.NewMessage(pattern='/id'))
+async def id_command(event):
+    user_id = event.sender_id
+    chat_id = event.chat_id
+    await event.reply(f'Your User ID: `{user_id}`\nYour Chat ID: `{chat_id}`')
 
-    application.add_handler(CommandHandler("start", welcome))
-    application.add_handler(MessageHandler(filters.Document.MimeType("text/plain"), handle_file))
-
-    application.run_polling()
+async def main():
+    await acc.start()
+    await client.start(bot_token=bot_token)
+    await client.run_until_disconnected()
 
 if __name__ == '__main__':
-    main()
-                
+    client.loop.run_until_complete(main())
